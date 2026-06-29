@@ -1,0 +1,1172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>DiabloShield — DDoS Protection</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;700&family=Syne:wght@700;800&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#06060e;--bg2:#0b0b18;--bg3:#101025;
+  --card:#0e0e22;--card2:#131330;
+  --red:#e5484d;--red2:#ff6166;--red3:rgba(229,72,77,0.12);
+  --cyan:#0ff;--cyan2:rgba(0,255,255,0.08);
+  --text:#e8e8f2;--text2:#8888aa;--text3:#55556a;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.1);
+  --green:#22d35e;--green2:rgba(34,211,94,0.12);
+  --yellow:#f5c518;--orange:#f97316;
+  --purple:#9333ea;--blue:#3b82f6;
+  --r:10px;
+  --font-display:'Syne',sans-serif;
+  --font-body:'Space Grotesk',sans-serif;
+  --font-mono:'JetBrains Mono',monospace;
+}
+html{height:100%}
+body{min-height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.6;overflow-x:hidden}
+
+/* ── CANVAS ── */
+#starfield{position:fixed;inset:0;z-index:0;pointer-events:none}
+
+/* ── LAYOUT ── */
+.layer{position:relative;z-index:1}
+.wrap{max-width:1120px;margin:0 auto;padding:0 24px}
+
+/* ── NAV ── */
+nav{position:sticky;top:0;z-index:100;background:rgba(6,6,14,0.85);backdrop-filter:blur(16px);border-bottom:1px solid var(--border)}
+.nav-inner{display:flex;align-items:center;justify-content:space-between;height:60px}
+.logo{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-size:1.15rem;font-weight:800;color:#fff;letter-spacing:-0.5px;text-decoration:none}
+.logo-mark{width:34px;height:34px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-mark svg{width:20px;height:20px;fill:#fff}
+.nav-right{display:flex;align-items:center;gap:10px}
+.btn{display:inline-flex;align-items:center;gap:7px;padding:8px 18px;border-radius:8px;font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;border:none;transition:all .18s;text-decoration:none;letter-spacing:0.2px}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--red);color:var(--red2)}
+.btn-red{background:var(--red);color:#fff;box-shadow:0 0 20px rgba(229,72,77,0.35)}
+.btn-red:hover{background:var(--red2);box-shadow:0 0 30px rgba(229,72,77,0.5);transform:translateY(-1px)}
+.btn-sm{padding:6px 14px;font-size:0.78rem}
+.btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.btn-outline:hover{border-color:var(--text2);color:var(--text)}
+#userChip{display:none;align-items:center;gap:8px;padding:5px 12px;background:var(--card2);border:1px solid var(--border2);border-radius:20px;font-size:0.8rem;color:var(--text2);cursor:pointer}
+#userChip .avatar{width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--purple));display:flex;align-items:center;justify-content:center;font-size:0.7rem;font-weight:700;color:#fff}
+
+/* ── TOAST ── */
+#toast{position:fixed;top:76px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast-item{padding:12px 18px;border-radius:10px;font-size:0.85rem;font-weight:500;animation:toastIn .25s ease;pointer-events:none;max-width:340px;border:1px solid}
+.toast-s{background:rgba(34,211,94,0.12);border-color:rgba(34,211,94,0.3);color:#4ade80}
+.toast-e{background:rgba(229,72,77,0.12);border-color:rgba(229,72,77,0.3);color:var(--red2)}
+.toast-i{background:rgba(59,130,246,0.12);border-color:rgba(59,130,246,0.3);color:#60a5fa}
+@keyframes toastIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+
+/* ── HERO ── */
+.hero{padding:90px 0 80px;text-align:center}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;border:1px solid rgba(229,72,77,0.3);background:var(--red3);font-family:var(--font-mono);font-size:0.72rem;color:var(--red2);margin-bottom:28px;letter-spacing:1px}
+.hero-eyebrow::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--red);animation:blink 1.4s infinite}
+.hero h1{font-family:var(--font-display);font-size:clamp(2.4rem,6vw,4rem);font-weight:800;line-height:1.08;letter-spacing:-2px;margin-bottom:22px;color:#fff}
+.hero h1 em{font-style:normal;color:var(--red2)}
+.hero p{color:var(--text2);font-size:1.05rem;max-width:520px;margin:0 auto 36px;line-height:1.7}
+.hero-btns{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.hero-btns .btn{padding:12px 28px;font-size:0.9rem}
+
+/* SHIELD SVG ANIMATION */
+.shield-wrap{position:relative;width:160px;height:160px;margin:50px auto 0}
+.shield-wrap svg.shield-main{width:100%;height:100%;filter:drop-shadow(0 0 24px rgba(229,72,77,0.5))}
+.orbit{position:absolute;inset:0;border-radius:50%;border:1px solid rgba(229,72,77,0.2);animation:orbit linear infinite}
+.o1{width:120%;height:120%;top:-10%;left:-10%;animation-duration:8s}
+.o2{width:145%;height:145%;top:-22.5%;left:-22.5%;border-color:rgba(0,255,255,0.1);animation-duration:14s;animation-direction:reverse}
+.o3{width:175%;height:175%;top:-37.5%;left:-37.5%;border-color:rgba(147,51,234,0.08);animation-duration:20s}
+@keyframes orbit{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.3}}
+@keyframes pulse-ring{0%{box-shadow:0 0 0 0 rgba(229,72,77,0.4)}70%{box-shadow:0 0 0 20px rgba(229,72,77,0)}100%{box-shadow:0 0 0 0 rgba(229,72,77,0)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* ── STATS BAR ── */
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;margin-bottom:80px}
+.stat-cell{background:var(--card);padding:22px;text-align:center}
+.stat-num{font-family:var(--font-display);font-size:1.9rem;font-weight:800;color:#fff;line-height:1}
+.stat-num em{font-style:normal;color:var(--red2)}
+.stat-label{font-size:0.72rem;color:var(--text2);margin-top:4px;letter-spacing:0.5px;text-transform:uppercase;font-family:var(--font-mono)}
+
+/* ── FEATURES ── */
+.section{padding:80px 0}
+.section-label{font-family:var(--font-mono);font-size:0.72rem;color:var(--red2);letter-spacing:2px;text-transform:uppercase;margin-bottom:12px}
+.section-title{font-family:var(--font-display);font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;letter-spacing:-1px;color:#fff;margin-bottom:16px;line-height:1.15}
+.section-sub{color:var(--text2);max-width:480px;margin-bottom:48px;line-height:1.7}
+.feat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.feat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:24px;transition:all .2s;position:relative;overflow:hidden}
+.feat-card::before{content:'';position:absolute;inset:0;background:radial-gradient(circle at top left,var(--red3),transparent 60%);opacity:0;transition:opacity .3s}
+.feat-card:hover{border-color:rgba(229,72,77,0.3);transform:translateY(-3px)}
+.feat-card:hover::before{opacity:1}
+.feat-icon{width:40px;height:40px;border-radius:10px;background:var(--red3);border:1px solid rgba(229,72,77,0.2);display:flex;align-items:center;justify-content:center;font-size:1.2rem;margin-bottom:16px}
+.feat-name{font-weight:700;font-size:0.95rem;color:#fff;margin-bottom:6px}
+.feat-desc{font-size:0.82rem;color:var(--text2);line-height:1.6}
+
+/* ── HOW IT WORKS ── */
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:24px;position:relative}
+.steps::before{content:'';position:absolute;top:28px;left:calc(16.66% + 20px);right:calc(16.66% + 20px);height:1px;background:linear-gradient(to right,var(--red),var(--purple),var(--blue))}
+.step{text-align:center;padding:0 16px}
+.step-num{width:56px;height:56px;border-radius:50%;background:var(--bg3);border:2px solid var(--red);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-size:1rem;font-weight:700;color:var(--red2);margin:0 auto 20px}
+.step-title{font-weight:700;font-size:1rem;color:#fff;margin-bottom:8px}
+.step-desc{font-size:0.82rem;color:var(--text2);line-height:1.6}
+
+/* ── AUTH MODAL ── */
+.modal-bg{position:fixed;inset:0;background:rgba(6,6,14,0.85);z-index:200;display:none;align-items:center;justify-content:center;backdrop-filter:blur(8px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--card2);border:1px solid var(--border2);border-radius:16px;width:100%;max-width:420px;padding:32px;position:relative;animation:modalIn .22s ease}
+@keyframes modalIn{from{opacity:0;transform:scale(0.96) translateY(10px)}to{opacity:1;transform:none}}
+.modal-close{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:8px;background:var(--bg3);border:1px solid var(--border);color:var(--text2);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s}
+.modal-close:hover{border-color:var(--red);color:var(--red2)}
+.modal-tabs{display:flex;background:var(--bg3);border-radius:8px;padding:3px;margin-bottom:24px;gap:2px}
+.m-tab{flex:1;padding:8px;text-align:center;border-radius:6px;cursor:pointer;font-size:0.82rem;font-weight:600;letter-spacing:0.3px;color:var(--text2);border:none;background:transparent;transition:.15s}
+.m-tab.on{background:var(--red3);color:var(--red2);border:1px solid rgba(229,72,77,0.25)}
+.form-group{margin-bottom:16px}
+label{display:block;font-size:0.75rem;font-weight:600;color:var(--text2);margin-bottom:6px;letter-spacing:0.3px;text-transform:uppercase;font-family:var(--font-mono)}
+input[type=text],input[type=email],input[type=password]{width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none;transition:.15s}
+input:focus{border-color:rgba(229,72,77,0.5);box-shadow:0 0 0 3px rgba(229,72,77,0.08)}
+input::placeholder{color:var(--text3)}
+.form-err{color:var(--red2);font-size:0.75rem;margin-top:6px;display:none}
+.form-err.show{display:block}
+.divider{display:flex;align-items:center;gap:10px;margin:18px 0}
+.divider::before,.divider::after{content:'';flex:1;height:1px;background:var(--border)}
+.divider span{font-size:0.72rem;color:var(--text3);font-family:var(--font-mono);white-space:nowrap}
+.social-row{display:grid;grid-template-columns:1fr;gap:8px}
+.btn-social{width:100%;padding:10px;border-radius:8px;border:1px solid var(--border2);background:var(--bg3);color:var(--text);font-family:var(--font-body);font-size:0.85rem;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:.15s}
+.btn-social:hover{border-color:var(--text2);background:rgba(255,255,255,0.04)}
+.modal-logo{text-align:center;margin-bottom:24px}
+.modal-logo-text{font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:#fff}
+.modal-logo-sub{font-size:0.75rem;color:var(--text2);margin-top:2px}
+
+/* ── DASHBOARD ── */
+#dashboard{display:none}
+#dashboard.open{display:flex}
+.dash-layout{display:flex;min-height:calc(100vh - 60px);width:100%}
+.dash-sidebar{width:220px;flex-shrink:0;background:var(--card);border-right:1px solid var(--border);padding:20px 14px;display:flex;flex-direction:column;gap:2px}
+.dash-logo{font-family:var(--font-display);font-size:0.8rem;font-weight:800;color:var(--red2);padding:0 6px 16px;border-bottom:1px solid var(--border);margin-bottom:8px;letter-spacing:0.5px}
+.dash-section{font-family:var(--font-mono);font-size:0.6rem;color:var(--text3);letter-spacing:2px;text-transform:uppercase;padding:10px 6px 4px;font-weight:700}
+.dash-item{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;cursor:pointer;font-size:0.82rem;font-weight:600;color:var(--text2);border:1px solid transparent;transition:.15s}
+.dash-item:hover{background:var(--red3);color:var(--text)}
+.dash-item.on{background:var(--red3);color:var(--red2);border-color:rgba(229,72,77,0.2)}
+.dash-item .di{width:16px;text-align:center;font-size:1rem}
+.dash-badge{margin-left:auto;background:var(--red);color:#fff;font-size:0.6rem;padding:2px 6px;border-radius:10px;font-weight:700;font-family:var(--font-mono)}
+.dash-main{flex:1;padding:24px;background:var(--bg2);overflow-y:auto}
+.dash-sub{display:none}
+.dash-sub.on{display:block;animation:fadeUp .25s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.dash-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}
+.dash-title{font-family:var(--font-display);font-size:1.2rem;font-weight:800;color:#fff;letter-spacing:-0.5px}
+.dash-title span{color:var(--red2)}
+
+/* METRICS */
+.metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+.metric{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:16px;position:relative;overflow:hidden}
+.metric::after{content:'';position:absolute;top:0;left:0;right:0;height:2px}
+.metric.m-red::after{background:var(--red)}
+.metric.m-green::after{background:var(--green)}
+.metric.m-blue::after{background:var(--blue)}
+.metric.m-purple::after{background:var(--purple)}
+.metric-val{font-family:var(--font-display);font-size:1.7rem;font-weight:800;color:#fff;line-height:1}
+.metric-val.red{color:var(--red2)}
+.metric-val.green{color:#4ade80}
+.metric-val.blue{color:#60a5fa}
+.metric-label{font-family:var(--font-mono);font-size:0.65rem;color:var(--text2);margin-top:6px;letter-spacing:0.5px;text-transform:uppercase}
+.metric-delta{font-size:0.7rem;color:var(--text3);margin-top:4px}
+
+/* CARDS */
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.card-title{font-weight:700;font-size:0.85rem;color:var(--text);margin-bottom:14px;display:flex;align-items:center;justify-content:space-between}
+.live-dot{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:0.65rem;color:#4ade80}
+.live-dot::before{content:'';width:6px;height:6px;border-radius:50%;background:#4ade80;animation:blink 1.2s infinite}
+
+/* BADGE */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:20px;font-family:var(--font-mono);font-size:0.68rem;font-weight:700;letter-spacing:0.3px}
+.badge::before{content:'';width:5px;height:5px;border-radius:50%;background:currentColor}
+.bg{background:var(--green2);color:#4ade80;border:1px solid rgba(34,211,94,0.25)}
+.br{background:var(--red3);color:var(--red2);border:1px solid rgba(229,72,77,0.25)}
+.by{background:rgba(245,197,24,0.1);color:var(--yellow);border:1px solid rgba(245,197,24,0.25)}
+.bb{background:rgba(59,130,246,0.1);color:#60a5fa;border:1px solid rgba(59,130,246,0.25)}
+
+/* SITE ROW */
+.site-row{display:flex;align-items:center;gap:12px;padding:12px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;margin-bottom:8px;transition:.15s}
+.site-row:hover{border-color:var(--border2)}
+.site-favicon{width:34px;height:34px;background:var(--red3);border:1px solid rgba(229,72,77,0.2);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0}
+.site-info{flex:1;min-width:0}
+.site-name{font-weight:700;font-size:0.88rem;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.site-url{font-family:var(--font-mono);font-size:0.7rem;color:var(--text2)}
+.site-actions{display:flex;gap:6px;flex-shrink:0;align-items:center}
+
+/* TOGGLE */
+.toggle{width:42px;height:22px;background:var(--bg3);border:1px solid var(--border2);border-radius:11px;cursor:pointer;position:relative;transition:.2s;flex-shrink:0}
+.toggle.on{background:rgba(34,211,94,0.2);border-color:rgba(34,211,94,0.4)}
+.toggle-thumb{width:16px;height:16px;background:var(--text2);border-radius:50%;position:absolute;top:2px;left:2px;transition:.2s}
+.toggle.on .toggle-thumb{left:22px;background:#4ade80}
+
+/* PROGRESS */
+.pbar{height:5px;background:var(--bg3);border-radius:3px;overflow:hidden;margin-top:8px}
+.pbar-fill{height:100%;border-radius:3px;transition:width 1s ease}
+.pr{background:linear-gradient(90deg,var(--red),var(--orange))}
+.pg{background:linear-gradient(90deg,var(--green),#06b6d4)}
+.pb{background:linear-gradient(90deg,var(--blue),var(--purple))}
+
+/* LOG TABLE */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 10px;font-family:var(--font-mono);font-size:0.65rem;color:var(--text3);font-weight:700;letter-spacing:1px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:9px 10px;font-size:0.8rem;border-bottom:1px solid rgba(255,255,255,0.03)}
+tr:hover td{background:rgba(255,255,255,0.015)}
+
+/* LIVE STREAM */
+#liveStream{height:150px;overflow-y:auto;font-family:var(--font-mono);font-size:0.7rem;color:var(--text2)}
+#liveStream::-webkit-scrollbar{width:3px}
+#liveStream::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+/* CHECK RESULT */
+.check-result{background:var(--bg3);border-radius:10px;padding:16px;margin-top:14px;display:none}
+.check-result.show{display:block;animation:fadeUp .3s ease}
+.check-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+.check-cell{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.check-val{font-family:var(--font-display);font-size:1.2rem;font-weight:800;margin-bottom:4px}
+.check-lbl{font-family:var(--font-mono);font-size:0.62rem;color:var(--text2);text-transform:uppercase;letter-spacing:0.5px}
+
+/* SETTINGS */
+.set-section{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;margin-bottom:14px}
+.set-title{font-family:var(--font-mono);font-size:0.7rem;color:var(--text2);letter-spacing:1.5px;text-transform:uppercase;margin-bottom:16px;font-weight:700}
+.set-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04)}
+.set-row:last-child{border-bottom:none}
+.set-info .sn{font-size:0.87rem;font-weight:600;color:var(--text)}
+.set-info .sd{font-size:0.73rem;color:var(--text2);margin-top:2px}
+.set-ctrl input[type=text],.set-ctrl input[type=password],.set-ctrl select{width:170px}
+.set-ctrl select{appearance:none;background:var(--bg3);cursor:pointer}
+
+/* ADMIN */
+.admin-stat{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px}
+
+/* FOOTER */
+footer{background:var(--card);border-top:1px solid var(--border);padding:40px 0}
+.footer-grid{display:grid;grid-template-columns:1.5fr 1fr 1fr;gap:40px}
+.footer-brand{font-family:var(--font-display);font-size:1rem;font-weight:800;color:#fff;margin-bottom:10px}
+.footer-desc{font-size:0.82rem;color:var(--text2);line-height:1.6;max-width:240px}
+.footer-col-title{font-family:var(--font-mono);font-size:0.7rem;color:var(--text2);letter-spacing:1px;text-transform:uppercase;margin-bottom:12px;font-weight:700}
+.footer-col a{display:block;color:var(--text3);font-size:0.82rem;text-decoration:none;margin-bottom:8px;transition:.15s}
+.footer-col a:hover{color:var(--text)}
+.footer-bottom{margin-top:32px;padding-top:20px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:0.78rem;color:var(--text3)}
+
+/* SCROLLBAR */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(229,72,77,0.4)}
+
+/* ADD SITE MODAL */
+#addSiteModal .modal{max-width:460px}
+
+/* ── UTILITY ── */
+.hidden{display:none!important}
+.full-btn{width:100%;padding:11px;border-radius:8px;font-family:var(--font-body);font-size:0.88rem;font-weight:600;cursor:pointer;border:none;transition:.18s;letter-spacing:0.3px}
+.full-btn-red{background:var(--red);color:#fff}
+.full-btn-red:hover{background:var(--red2)}
+.full-btn-outline{background:transparent;border:1px solid var(--border2);color:var(--text2)}
+.full-btn-outline:hover{border-color:var(--text2);color:var(--text)}
+.mt8{margin-top:8px}
+.mt14{margin-top:14px}
+.gap8{display:flex;gap:8px}
+</style>
+</head>
+<body>
+
+<!-- CANVAS STARFIELD -->
+<canvas id="starfield"></canvas>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- AUTH MODAL -->
+<div class="modal-bg" id="authModal">
+  <div class="modal">
+    <button class="modal-close" onclick="closeModal('authModal')">✕</button>
+    <div class="modal-logo">
+      <div class="modal-logo-text">🛡 DiabloShield</div>
+      <div class="modal-logo-sub">Enterprise DDoS Protection Portal</div>
+    </div>
+    <div class="modal-tabs">
+      <button class="m-tab on" id="tab-login" onclick="switchTab('login')">Login</button>
+      <button class="m-tab" id="tab-register" onclick="switchTab('register')">Register</button>
+    </div>
+    <!-- LOGIN -->
+    <div id="form-login">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="li-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="li-pass" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/>
+      </div>
+      <div class="form-err" id="li-err">Invalid credentials.</div>
+      <button class="full-btn full-btn-red" onclick="doLogin()">Access Portal</button>
+      <div class="divider"><span>or continue with</span></div>
+      <div class="social-row">
+        <button class="btn-social" onclick="googleLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+    <!-- REGISTER -->
+    <div id="form-register" style="display:none">
+      <div class="form-group">
+        <label>Full Name</label>
+        <input type="text" id="reg-name" placeholder="Your name"/>
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="reg-email" placeholder="you@example.com"/>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="reg-pass" placeholder="Min 8 characters"/>
+      </div>
+      <div class="form-group">
+        <label>Confirm Password</label>
+        <input type="password" id="reg-pass2" placeholder="Repeat password"/>
+      </div>
+      <div class="form-err" id="reg-err"></div>
+      <button class="full-btn full-btn-red" onclick="doRegister()">Create Account</button>
+      <div class="divider"><span>or register with</span></div>
+      <div class="social-row">
+        <button class="btn-social" onclick="googleLogin()">
+          <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+          Continue with Google
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SITE MODAL -->
+<div class="modal-bg" id="addSiteModal">
+  <div class="modal" style="max-width:460px">
+    <button class="modal-close" onclick="closeModal('addSiteModal')">✕</button>
+    <div style="font-family:var(--font-display);font-size:1rem;font-weight:800;color:#fff;margin-bottom:20px">Add Website Protection</div>
+    <div class="form-group">
+      <label>Website URL</label>
+      <input type="text" id="add-url" placeholder="https://yoursite.com"/>
+    </div>
+    <div class="form-group">
+      <label>Site Label</label>
+      <input type="text" id="add-name" placeholder="My Website"/>
+    </div>
+    <div class="form-group">
+      <label>Protection Level</label>
+      <select id="add-level" style="width:100%;padding:10px 14px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:0.9rem;outline:none">
+        <option value="standard">Standard</option>
+        <option value="advanced">Advanced</option>
+        <option value="maximum">Maximum</option>
+      </select>
+    </div>
+    <button class="full-btn full-btn-red" onclick="confirmAddSite()">Activate Protection</button>
+  </div>
+</div>
+
+<!-- ====================== LANDING ====================== -->
+<div id="landing" class="layer">
+
+  <nav class="layer">
+    <div class="wrap nav-inner">
+      <a href="#" class="logo" onclick="scrollToTop()">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5L12 1z"/></svg>
+        </div>
+        DiabloShield
+      </a>
+      <div class="nav-right">
+        <div id="userChip" onclick="openDash()">
+          <div class="avatar" id="chipInitial">U</div>
+          <span id="chipName">User</span>
+        </div>
+        <button class="btn btn-ghost btn-sm" id="navLoginBtn" onclick="openModal('authModal')">Log in</button>
+        <button class="btn btn-red btn-sm" onclick="openModal('authModal')">Get Protected</button>
+      </div>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero layer">
+    <div class="wrap">
+      <div class="hero-eyebrow">LIVE PROTECTION ACTIVE</div>
+      <h1>Your websites, <em>shielded</em><br/>against every attack</h1>
+      <p>Real-time DDoS mitigation, uptime monitoring, and threat intelligence — all in one dashboard. Know your site is safe before you even open your laptop.</p>
+      <div class="hero-btns">
+        <button class="btn btn-red" onclick="openModal('authModal')">Start protecting now</button>
+        <button class="btn btn-ghost" onclick="openModal('authModal')">View demo dashboard</button>
+      </div>
+
+      <!-- SHIELD ANIMATION -->
+      <div class="shield-wrap" style="animation:float 3.5s ease-in-out infinite">
+        <div class="orbit o1"></div>
+        <div class="orbit o2"></div>
+        <div class="orbit o3"></div>
+        <svg class="shield-main" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M60 8L18 24v28c0 22 18.4 42.5 42 48 23.6-5.5 42-26 42-48V24L60 8z" fill="rgba(229,72,77,0.12)" stroke="#e5484d" stroke-width="2"/>
+          <path d="M60 20L30 32v18c0 14.5 12 27.8 30 31.5C78 78.8 90 65.5 90 51V32L60 20z" fill="rgba(229,72,77,0.06)" stroke="rgba(229,72,77,0.4)" stroke-width="1.5"/>
+          <path d="M48 58l8 8 16-18" stroke="#e5484d" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="60" cy="58" r="14" fill="rgba(229,72,77,0.08)" stroke="rgba(229,72,77,0.3)" stroke-width="1"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- STATS BAR -->
+  <div class="wrap layer">
+    <div class="stats-bar">
+      <div class="stat-cell"><div class="stat-num"><em>2.4T</em></div><div class="stat-label">Packets Blocked</div></div>
+      <div class="stat-cell"><div class="stat-num">99.<em>99</em>%</div><div class="stat-label">Uptime SLA</div></div>
+      <div class="stat-cell"><div class="stat-num"><em>180</em>+</div><div class="stat-label">Countries Covered</div></div>
+      <div class="stat-cell"><div class="stat-num">&lt;<em>3</em>ms</div><div class="stat-label">Response Time</div></div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section class="section layer">
+    <div class="wrap">
+      <div class="section-label">What we do</div>
+      <div class="section-title">Protection at every layer</div>
+      <div class="section-sub">From volumetric floods to application-layer attacks — DiabloShield intercepts and neutralises threats before they ever reach your server.</div>
+      <div class="feat-grid">
+        <div class="feat-card"><div class="feat-icon">🌊</div><div class="feat-name">Volumetric Mitigation</div><div class="feat-desc">Absorb UDP and ICMP floods up to 10 Tbps across our anycast network with zero downtime.</div></div>
+        <div class="feat-card"><div class="feat-icon">📡</div><div class="feat-name">Real-Time Monitoring</div><div class="feat-desc">Live traffic dashboards with per-second granularity. Know what's hitting your server the moment it happens.</div></div>
+        <div class="feat-card"><div class="feat-icon">🤖</div><div class="feat-name">AI Threat Detection</div><div class="feat-desc">ML models trained on billions of attack signatures identify zero-day vectors in milliseconds.</div></div>
+        <div class="feat-card"><div class="feat-icon">🔒</div><div class="feat-name">Layer 7 Filtering</div><div class="feat-desc">Intelligent HTTP inspection blocks slowloris, request floods, and bot-driven API abuse.</div></div>
+        <div class="feat-card"><div class="feat-icon">🌍</div><div class="feat-name">Global Anycast CDN</div><div class="feat-desc">280+ PoPs route traffic to the nearest scrubbing centre — attacks are absorbed before they reach you.</div></div>
+        <div class="feat-card"><div class="feat-icon">⚡</div><div class="feat-name">One-Click Activation</div><div class="feat-desc">Add your domain, flip the shield on, and you're protected. No DNS changes, no complex setup.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- HOW IT WORKS -->
+  <section class="section layer" style="background:var(--card);border-top:1px solid var(--border);border-bottom:1px solid var(--border)">
+    <div class="wrap">
+      <div class="section-label">How it works</div>
+      <div class="section-title">Up in three steps</div>
+      <div class="steps" style="margin-top:40px">
+        <div class="step"><div class="step-num">01</div><div class="step-title">Add your domain</div><div class="step-desc">Paste your URL into the dashboard. We instantly profile your site and configure protection rules.</div></div>
+        <div class="step"><div class="step-num">02</div><div class="step-num" style="display:none"></div><div class="step-title">Enable the shield</div><div class="step-desc">Toggle protection on. Traffic passes through our global scrubbing layer — clean requests reach your server.</div></div>
+        <div class="step"><div class="step-num">03</div><div class="step-title">Monitor in real-time</div><div class="step-desc">Watch attacks get blocked live. Check uptime, threat level, and bandwidth absorbed from your panel.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section layer" style="text-align:center">
+    <div class="wrap">
+      <div class="section-label">Ready?</div>
+      <div class="section-title">Start protecting your websites today</div>
+      <p style="color:var(--text2);margin:14px auto 32px;max-width:440px">Free plan covers 1 site up to 10 Gbps. No credit card required.</p>
+      <button class="btn btn-red" style="padding:14px 36px;font-size:0.95rem" onclick="openModal('authModal')">Create free account</button>
+    </div>
+  </section>
+
+  <footer class="layer">
+    <div class="wrap">
+      <div class="footer-grid">
+        <div>
+          <div class="footer-brand">🛡 DiabloShield</div>
+          <div class="footer-desc">Enterprise-grade DDoS protection trusted by thousands of websites worldwide.</div>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Product</div>
+          <a href="#">Dashboard</a><a href="#">Features</a><a href="#">Pricing</a><a href="#">Status Page</a>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Support</div>
+          <a href="#">Documentation</a><a href="#">Discord</a><a href="#">Contact</a><a href="#">Privacy Policy</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <span>© 2026 DiabloShield. All rights reserved.</span>
+        <span style="font-family:var(--font-mono);color:var(--text3)">v2.4.1 — All systems operational</span>
+      </div>
+    </div>
+  </footer>
+</div>
+
+<!-- ====================== DASHBOARD ====================== -->
+<div id="dashboard" style="min-height:calc(100vh - 60px)">
+  <div class="dash-layout">
+
+    <!-- SIDEBAR -->
+    <div class="dash-sidebar">
+      <div class="dash-logo">🛡 DiabloShield</div>
+      <div id="sidebarUserInfo" style="display:flex;align-items:center;gap:8px;padding:8px 6px 14px;border-bottom:1px solid var(--border);margin-bottom:6px">
+        <div id="sideAvatar" style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--red),var(--purple));display:flex;align-items:center;justify-content:center;font-size:0.8rem;font-weight:700;color:#fff;flex-shrink:0">U</div>
+        <div style="min-width:0"><div id="sidebarName" style="font-size:0.82rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">User</div><div style="font-size:0.65rem;color:var(--green)">● Online</div></div>
+      </div>
+      <div class="dash-section">Overview</div>
+      <div class="dash-item on" onclick="showSub('s-overview')"><span class="di">📊</span> Overview</div>
+      <div class="dash-item" onclick="showSub('s-sites')"><span class="di">🌐</span> My Sites <span class="dash-badge" id="siteCountBadge">0</span></div>
+      <div class="dash-item" onclick="showSub('s-check')"><span class="di">🔍</span> Check Website</div>
+      <div class="dash-section">Protection</div>
+      <div class="dash-item" onclick="showSub('s-ddos')"><span class="di">🛡</span> DDoS Panel</div>
+      <div class="dash-item" onclick="showSub('s-log')"><span class="di">⚡</span> Attack Log <span class="dash-badge" id="logBadge">0</span></div>
+      <div class="dash-section">Account</div>
+      <div class="dash-item" onclick="showSub('s-settings')"><span class="di">⚙️</span> Settings</div>
+      <div id="adminMenuBtn" class="dash-item hidden" onclick="showSub('s-admin')"><span class="di">👑</span> Admin Panel</div>
+      <div class="dash-item" style="margin-top:auto;color:var(--red2)" onclick="logout()"><span class="di">🚪</span> Logout</div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <div class="dash-main">
+
+      <!-- ── OVERVIEW ── -->
+      <div class="dash-sub on" id="s-overview">
+        <div class="dash-header">
+          <div class="dash-title">Good to have you back, <span id="greetName">Agent</span></div>
+          <div class="live-dot">Live data</div>
+        </div>
+        <div class="metrics">
+          <div class="metric m-green"><div class="metric-val green" id="ov-sites">0</div><div class="metric-label">Sites Protected</div><div class="metric-delta" id="ov-sites-d">—</div></div>
+          <div class="metric m-red"><div class="metric-val red" id="ov-attacks">0</div><div class="metric-label">Attacks Blocked</div><div class="metric-delta" id="ov-attacks-d">Today</div></div>
+          <div class="metric m-blue"><div class="metric-val blue" id="ov-bw">0 Gbps</div><div class="metric-label">Bandwidth Absorbed</div><div class="metric-delta">All time</div></div>
+          <div class="metric m-purple"><div class="metric-val" style="color:#c084fc" id="ov-uptime">99.9%</div><div class="metric-label">Avg Uptime</div><div class="metric-delta">Last 30 days</div></div>
+        </div>
+
+        <!-- TRAFFIC CHART -->
+        <div class="card">
+          <div class="card-title">24-hour attack timeline <span class="live-dot">Updating</span></div>
+          <div id="trafficChart" style="display:flex;align-items:flex-end;gap:3px;height:80px;padding:4px 0"></div>
+          <div style="display:flex;gap:16px;margin-top:8px">
+            <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--text2)"><div style="width:8px;height:8px;border-radius:2px;background:var(--red)"></div>Attack traffic</div>
+            <div style="display:flex;align-items:center;gap:5px;font-size:0.7rem;color:var(--text2)"><div style="width:8px;height:8px;border-radius:2px;background:var(--green)"></div>Clean traffic</div>
+          </div>
+        </div>
+
+        <!-- SITE STATUS QUICK -->
+        <div class="card">
+          <div class="card-title">Site status snapshot</div>
+          <div id="ov-site-list"><div style="color:var(--text3);font-size:0.82rem;text-align:center;padding:20px 0">No sites added — go to "My Sites" to add your first website</div></div>
+        </div>
+      </div>
+
+      <!-- ── MY SITES ── -->
+      <div class="dash-sub" id="s-sites">
+        <div class="dash-header">
+          <div class="dash-title">My <span>Sites</span></div>
+          <button class="btn btn-red btn-sm" onclick="openModal('addSiteModal')">+ Add site</button>
+        </div>
+        <div id="siteListEl"><div style="color:var(--text3);font-size:0.82rem;text-align:center;padding:40px 0">No websites added yet. Click "Add site" to get started.</div></div>
+      </div>
+
+      <!-- ── CHECK WEBSITE ── -->
+      <div class="dash-sub" id="s-check">
+        <div class="dash-header"><div class="dash-title">Check <span>Website</span></div></div>
+        <div class="card">
+          <div class="card-title">Check if a website is online and protected</div>
+          <div style="display:flex;gap:8px;margin-bottom:8px">
+            <input type="text" id="check-input" placeholder="https://example.com" style="flex:1" onkeydown="if(event.key==='Enter')checkWebsite()"/>
+            <button class="btn btn-red" onclick="checkWebsite()">Check now</button>
+          </div>
+          <div style="font-size:0.75rem;color:var(--text3)">We'll check if the site is online, response time, and whether it's covered by DDoS protection.</div>
+          <div id="check-result" class="check-result">
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+              <div id="check-status-icon" style="font-size:1.5rem">✅</div>
+              <div>
+                <div id="check-status-text" style="font-weight:700;font-size:0.95rem;color:#fff"></div>
+                <div id="check-url-text" style="font-family:var(--font-mono);font-size:0.72rem;color:var(--text2)"></div>
+              </div>
+              <div id="check-badge-wrap" style="margin-left:auto"></div>
+            </div>
+            <div class="check-grid">
+              <div class="check-cell"><div class="check-val" id="cr-ping">—</div><div class="check-lbl">Response Time</div></div>
+              <div class="check-cell"><div class="check-val" id="cr-status">—</div><div class="check-lbl">HTTP Status</div></div>
+              <div class="check-cell"><div class="check-val" id="cr-shield">—</div><div class="check-lbl">DDoS Shield</div></div>
+            </div>
+            <div id="cr-detail" style="margin-top:12px;font-size:0.78rem;color:var(--text2);line-height:1.6;border-top:1px solid var(--border);padding-top:12px"></div>
+          </div>
+        </div>
+        <!-- MY SITES CHECK -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">Your protected sites — live status</div>
+          <div id="my-sites-check"><div style="color:var(--text3);font-size:0.82rem">Add websites in "My Sites" to see their live status here.</div></div>
+        </div>
+      </div>
+
+      <!-- ── DDOS PANEL ── -->
+      <div class="dash-sub" id="s-ddos">
+        <div class="dash-header">
+          <div class="dash-title">DDoS <span>Protection Panel</span></div>
+          <div class="live-dot">Live</div>
+        </div>
+        <!-- THREAT LEVEL -->
+        <div class="card">
+          <div class="card-title">Threat Intelligence</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+            <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Threat Level</div><div style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:var(--yellow)" id="threatLevel">MEDIUM</div></div>
+            <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">IPs Blocked</div><div style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:var(--red2)" id="ipsBlocked">0</div></div>
+            <div style="background:var(--bg3);border-radius:8px;padding:14px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.65rem;color:var(--text3);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">Rules Active</div><div style="font-family:var(--font-display);font-size:1.3rem;font-weight:800;color:#60a5fa" id="rulesActive">12</div></div>
+          </div>
+        </div>
+        <!-- PER SITE PROTECTION -->
+        <div class="card">
+          <div class="card-title">Per-site protection status</div>
+          <div id="ddos-site-list"><div style="color:var(--text3);font-size:0.82rem">Add a website in "My Sites" to manage DDoS protection per site.</div></div>
+        </div>
+        <!-- LIVE STREAM -->
+        <div class="card">
+          <div class="card-title">Live request stream <span class="live-dot">Active</span></div>
+          <div id="liveStream"></div>
+        </div>
+        <!-- ATTACK SOURCES -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+          <div class="card">
+            <div class="card-title">Top attack sources</div>
+            <div id="attackSources"></div>
+          </div>
+          <div class="card">
+            <div class="card-title">Protocol breakdown</div>
+            <div id="protocolBreakdown"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── ATTACK LOG ── -->
+      <div class="dash-sub" id="s-log">
+        <div class="dash-header"><div class="dash-title">Attack <span>Log</span></div><div class="live-dot">Live</div></div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Time</th><th>Site</th><th>Type</th><th>Volume</th><th>Source IP</th><th>Status</th></tr></thead>
+            <tbody id="attackLogBody"></tbody>
+          </table>
+          <div id="emptyLog" style="text-align:center;padding:24px;color:var(--text3);font-size:0.82rem">No attacks recorded yet — your sites are quiet 🎉</div>
+        </div>
+      </div>
+
+      <!-- ── SETTINGS ── -->
+      <div class="dash-sub" id="s-settings">
+        <div class="dash-header">
+          <div class="dash-title">Account <span>Settings</span></div>
+          <button class="btn btn-ghost btn-sm" onclick="saveSettings()">Save changes</button>
+        </div>
+        <div class="set-section">
+          <div class="set-title">Profile</div>
+          <div class="set-row"><div class="set-info"><div class="sn">Display name</div><div class="sd">Shown across the portal</div></div><div class="set-ctrl"><input type="text" id="s-name" placeholder="Your name"/></div></div>
+          <div class="set-row"><div class="set-info"><div class="sn">Email address</div><div class="sd">Your login email</div></div><div class="set-ctrl"><input type="text" id="s-email" readonly style="opacity:.5;cursor:not-allowed"/></div></div>
+          <div class="set-row" id="s-passRow"><div class="set-info"><div class="sn">Password</div><div class="sd">Manual accounts only</div></div><div class="set-ctrl"><input type="password" id="s-newpass" placeholder="New password (min 8 chars)"/></div></div>
+        </div>
+        <div class="set-section">
+          <div class="set-title">Notifications</div>
+          <div class="set-row"><div class="set-info"><div class="sn">Attack alerts</div><div class="sd">Email when a DDoS event starts</div></div><div class="set-ctrl"><div class="toggle on" id="t1" onclick="flipToggle('t1')"><div class="toggle-thumb"></div></div></div></div>
+          <div class="set-row"><div class="set-info"><div class="sn">Weekly report</div><div class="sd">Summary every Monday</div></div><div class="set-ctrl"><div class="toggle on" id="t2" onclick="flipToggle('t2')"><div class="toggle-thumb"></div></div></div></div>
+          <div class="set-row"><div class="set-info"><div class="sn">Uptime alerts</div><div class="sd">Notify when a site goes offline</div></div><div class="set-ctrl"><div class="toggle on" id="t3" onclick="flipToggle('t3')"><div class="toggle-thumb"></div></div></div></div>
+        </div>
+        <div class="set-section">
+          <div class="set-title">Security Preferences</div>
+          <div class="set-row"><div class="set-info"><div class="sn">Default protection level</div><div class="sd">Applied to new sites automatically</div></div><div class="set-ctrl"><select id="s-protLevel" style="width:170px;padding:8px 12px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:var(--font-body);font-size:0.85rem;outline:none"><option>Standard</option><option>Advanced</option><option>Maximum</option></select></div></div>
+          <div class="set-row"><div class="set-info"><div class="sn">Challenge mode</div><div class="sd">CAPTCHA on high-load events</div></div><div class="set-ctrl"><div class="toggle on" id="t4" onclick="flipToggle('t4')"><div class="toggle-thumb"></div></div></div></div>
+          <div class="set-row"><div class="set-info"><div class="sn">IP reputation blocking</div><div class="sd">Auto-block known malicious IPs</div></div><div class="set-ctrl"><div class="toggle on" id="t5" onclick="flipToggle('t5')"><div class="toggle-thumb"></div></div></div></div>
+        </div>
+      </div>
+
+      <!-- ── ADMIN PANEL ── -->
+      <div class="dash-sub" id="s-admin">
+        <div class="dash-header"><div class="dash-title">Admin <span style="color:var(--yellow)">Panel</span></div><div class="live-dot">Live</div></div>
+        <div class="admin-stat">
+          <div class="metric m-blue"><div class="metric-val blue" id="ad-users">0</div><div class="metric-label">Total Users</div></div>
+          <div class="metric m-green"><div class="metric-val green" id="ad-sites">0</div><div class="metric-label">Total Sites</div></div>
+          <div class="metric m-red"><div class="metric-val red" id="ad-attacks">0</div><div class="metric-label">Total Attacks</div></div>
+        </div>
+        <!-- SYSTEM HEALTH -->
+        <div class="card">
+          <div class="card-title">System health</div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+            <div><div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">CPU</div><div class="pbar"><div class="pbar-fill pg" id="cpu-bar" style="width:24%"></div></div><div style="font-size:0.72rem;color:var(--text2);margin-top:4px" id="cpu-val">24%</div></div>
+            <div><div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">Memory</div><div class="pbar"><div class="pbar-fill pb" id="mem-bar" style="width:57%"></div></div><div style="font-size:0.72rem;color:var(--text2);margin-top:4px" id="mem-val">57%</div></div>
+            <div><div style="font-size:0.72rem;color:var(--text2);margin-bottom:6px">Network</div><div class="pbar"><div class="pbar-fill pr" id="net-bar" style="width:38%"></div></div><div style="font-size:0.72rem;color:var(--text2);margin-top:4px" id="net-val">38%</div></div>
+          </div>
+        </div>
+        <!-- ALL USERS -->
+        <div class="card">
+          <div class="card-title">All users</div>
+          <table><thead><tr><th>Name</th><th>Email</th><th>Sites</th><th>Method</th><th>Joined</th><th>Role</th></tr></thead><tbody id="admin-users"></tbody></table>
+        </div>
+        <!-- LOGIN LOG -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">Login activity</div>
+          <table><thead><tr><th>User</th><th>Email</th><th>Method</th><th>Time</th><th>Result</th></tr></thead><tbody id="admin-logins"></tbody></table>
+        </div>
+        <!-- ALL SITES -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">All protected sites</div>
+          <table><thead><tr><th>Site</th><th>URL</th><th>Owner</th><th>Level</th><th>Status</th><th>Attacks</th></tr></thead><tbody id="admin-sites"></tbody></table>
+        </div>
+        <!-- SYSTEM SETTINGS -->
+        <div class="card" style="margin-top:14px">
+          <div class="card-title">System configuration</div>
+          <div class="set-row" style="border-bottom:1px solid var(--border);padding:10px 0"><div class="set-info"><div class="sn">Max Gbps threshold</div><div class="sd">Auto-escalate above this value</div></div><div class="set-ctrl"><input type="text" value="500" style="width:120px"/></div></div>
+          <div class="set-row" style="padding:10px 0"><div class="set-info"><div class="sn">Rate limit (req/s)</div><div class="sd">Per-IP request ceiling</div></div><div class="set-ctrl"><input type="text" value="1000" style="width:120px"/></div></div>
+          <button class="btn btn-red btn-sm" style="margin-top:12px" onclick="toast('System config saved','s')">Save config</button>
+        </div>
+      </div>
+
+    </div><!-- /dash-main -->
+  </div><!-- /dash-layout -->
+</div><!-- /dashboard -->
+
+<script>
+// ─────────────── STARFIELD ───────────────
+(function(){
+  const c=document.getElementById('starfield');
+  const ctx=c.getContext('2d');
+  let W,H,stars=[];
+  function resize(){W=c.width=window.innerWidth;H=c.height=window.innerHeight;}
+  function init(){
+    resize();stars=[];
+    for(let i=0;i<160;i++)stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+.2,vx:(Math.random()-.5)*.15,vy:(Math.random()-.5)*.15,o:Math.random()*.7+.15});
+  }
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    // faint grid
+    ctx.strokeStyle='rgba(255,255,255,0.02)';ctx.lineWidth=1;
+    for(let x=0;x<W;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+    // particles
+    stars.forEach(s=>{
+      ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(229,72,77,${s.o})`;ctx.fill();
+      s.x+=s.vx;s.y+=s.vy;
+      if(s.x<0||s.x>W)s.vx*=-1;
+      if(s.y<0||s.y>H)s.vy*=-1;
+    });
+    // connect near pairs
+    ctx.strokeStyle='rgba(229,72,77,0.06)';ctx.lineWidth=.5;
+    for(let i=0;i<stars.length;i++){
+      for(let j=i+1;j<stars.length;j++){
+        const d=Math.hypot(stars[i].x-stars[j].x,stars[i].y-stars[j].y);
+        if(d<100){ctx.beginPath();ctx.moveTo(stars[i].x,stars[i].y);ctx.lineTo(stars[j].x,stars[j].y);ctx.stroke();}
+      }
+    }
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize',init);
+  init();draw();
+})();
+
+// ─────────────── STATE ───────────────
+const ADMIN_EMAIL='serverdiablo94@gmail.com';
+const ADMIN_PASS='diablo94';
+let currentUser=null;
+let users=JSON.parse(localStorage.getItem('ds2_users')||'[]');
+let sites=JSON.parse(localStorage.getItem('ds2_sites')||'[]');
+let loginLog=JSON.parse(localStorage.getItem('ds2_loginLog')||'[]');
+let attackLog=JSON.parse(localStorage.getItem('ds2_attackLog')||'[]');
+let liveAttacks=0;let totalBW=0;
+
+// ─────────────── PERSIST ───────────────
+function save(){
+  localStorage.setItem('ds2_users',JSON.stringify(users));
+  localStorage.setItem('ds2_sites',JSON.stringify(sites));
+  localStorage.setItem('ds2_loginLog',JSON.stringify(loginLog));
+  localStorage.setItem('ds2_attackLog',JSON.stringify(attackLog));
+}
+
+// ─────────────── TOAST ───────────────
+function toast(msg,type='i'){
+  const el=document.getElementById('toast');
+  const t=document.createElement('div');
+  t.className=`toast-item toast-${type}`;t.textContent=msg;
+  el.appendChild(t);
+  setTimeout(()=>t.remove(),3500);
+}
+
+// ─────────────── MODAL ───────────────
+function openModal(id){document.getElementById(id).classList.add('open');}
+function closeModal(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.modal-bg').forEach(m=>m.addEventListener('click',e=>{if(e.target===m)m.classList.remove('open');}));
+
+// ─────────────── AUTH TAB ───────────────
+function switchTab(t){
+  document.getElementById('form-login').style.display=t==='login'?'block':'none';
+  document.getElementById('form-register').style.display=t==='register'?'block':'none';
+  document.getElementById('tab-login').classList.toggle('on',t==='login');
+  document.getElementById('tab-register').classList.toggle('on',t==='register');
+  document.querySelectorAll('.form-err').forEach(e=>e.classList.remove('show'));
+}
+
+// ─────────────── LOGIN ───────────────
+function doLogin(){
+  const email=document.getElementById('li-email').value.trim();
+  const pass=document.getElementById('li-pass').value;
+  const err=document.getElementById('li-err');
+  err.classList.remove('show');
+  if(email===ADMIN_EMAIL&&pass===ADMIN_PASS){
+    currentUser={id:'admin',name:'Diablo',email:ADMIN_EMAIL,role:'admin',method:'manual'};
+    logLogin('Diablo',ADMIN_EMAIL,'manual','success');
+    afterLogin();return;
+  }
+  const u=users.find(x=>x.email===email&&x.pass===pass);
+  if(u){currentUser={...u};logLogin(u.name,u.email,'manual','success');afterLogin();}
+  else{err.classList.add('show');logLogin(email||'unknown',email,'manual','fail');}
+}
+
+function googleLogin(){
+  const fakeEmail='google_user_'+Math.floor(Math.random()*9999)+'@gmail.com';
+  const fakeName='Google User';
+  let u=users.find(x=>x.email===fakeEmail);
+  if(!u){u={id:Date.now(),name:fakeName,email:fakeEmail,pass:null,role:'user',method:'Google',joined:new Date().toLocaleDateString()};users.push(u);save();}
+  currentUser={...u};
+  logLogin(fakeName,fakeEmail,'Google','success');
+  afterLogin();
+}
+
+function doRegister(){
+  const name=document.getElementById('reg-name').value.trim();
+  const email=document.getElementById('reg-email').value.trim();
+  const pass=document.getElementById('reg-pass').value;
+  const pass2=document.getElementById('reg-pass2').value;
+  const err=document.getElementById('reg-err');
+  err.classList.remove('show');
+  if(!name||!email||!pass){err.textContent='All fields are required.';err.classList.add('show');return;}
+  if(pass.length<8){err.textContent='Password must be at least 8 characters.';err.classList.add('show');return;}
+  if(pass!==pass2){err.textContent='Passwords do not match.';err.classList.add('show');return;}
+  if(email===ADMIN_EMAIL||users.find(x=>x.email===email)){err.textContent='Email already registered.';err.classList.add('show');return;}
+  const u={id:Date.now(),name,email,pass,role:'user',method:'manual',joined:new Date().toLocaleDateString()};
+  users.push(u);save();
+  currentUser={...u};
+  logLogin(name,email,'register','success');
+  afterLogin();
+}
+
+function logLogin(name,email,method,status){
+  loginLog.unshift({name,email,method,status,time:new Date().toLocaleString()});
+  if(loginLog.length>100)loginLog.pop();
+  save();
+}
+
+function afterLogin(){
+  closeModal('authModal');
+  // update nav
+  document.getElementById('navLoginBtn').style.display='none';
+  const chip=document.getElementById('userChip');
+  chip.style.display='flex';
+  document.getElementById('chipName').textContent=currentUser.name.split(' ')[0];
+  document.getElementById('chipInitial').textContent=currentUser.name.charAt(0).toUpperCase();
+  // show dashboard
+  document.getElementById('landing').style.display='none';
+  const dash=document.getElementById('dashboard');
+  dash.style.display='flex';
+  dash.classList.add('open');
+  // update sidebar
+  document.getElementById('sidebarName').textContent=currentUser.name;
+  document.getElementById('sideAvatar').textContent=currentUser.name.charAt(0).toUpperCase();
+  document.getElementById('greetName').textContent=currentUser.name.split(' ')[0];
+  if(currentUser.role==='admin')document.getElementById('adminMenuBtn').classList.remove('hidden');
+  else document.getElementById('adminMenuBtn').classList.add('hidden');
+  // load all data
+  refreshAll();
+  startLiveStream();
+  startHealthBeat();
+  startAttackSimulation();
+  loadSettingsForm();
+  toast(`Welcome back, ${currentUser.name.split(' ')[0]}!`,'s');
+}
+
+function openDash(){if(currentUser){document.getElementById('landing').style.display='none';document.getElementById('dashboard').style.display='flex';}}
+
+function logout(){
+  currentUser=null;
+  document.getElementById('landing').style.display='block';
+  document.getElementById('dashboard').style.display='none';
+  document.getElementById('userChip').style.display='none';
+  document.getElementById('navLoginBtn').style.display='inline-flex';
+  clearAllIntervals();
+  toast('Logged out.','i');
+}
+
+function scrollToTop(){window.scrollTo(0,0);}
+
+// ─────────────── SIDEBAR NAV ───────────────
+function showSub(id){
+  document.querySelectorAll('.dash-sub').forEach(s=>s.classList.remove('on'));
+  document.querySelectorAll('.dash-item').forEach(i=>i.classList.remove('on'));
+  document.getElementById(id).classList.add('on');
+  const names={'s-overview':'Overview','s-sites':'My Sites','s-check':'Check Website','s-ddos':'DDoS Panel','s-log':'Attack Log','s-settings':'Settings','s-admin':'Admin Panel'};
+  document.querySelectorAll('.dash-item').forEach(i=>{if(i.textContent.trim().startsWith(names[id]?.split(' ')[0]||'__'))i.classList.add('on');});
+  if(id==='s-ddos'){renderAttackSources();renderProtocolBreakdown();}
+  if(id==='s-admin')refreshAdmin();
+  if(id==='s-check')renderMySitesCheck();
+}
+
+// ─────────────── SITES ───────────────
+function getUserSites(){return sites.filter(s=>s.userId===currentUser?.email||s.userId===currentUser?.id);}
+
+function confirmAddSite(){
+  const url=document.getElementById('add-url').value.trim();
+  const name=document.getElementById('add-name').value.trim();
+  const level=document.getElementById('add-level').value;
+  if(!url||!name){toast('Fill in all fields.','e');return;}
+  const ns={id:Date.now(),url,name,level,userId:currentUser.email||currentUser.id,owner:currentUser.name,status:'online',protected:true,attacks:0,added:new Date().toLocaleDateString()};
+  sites.push(ns);save();
+  closeModal('addSiteModal');
+  document.getElementById('add-url').value='';document.getElementById('add-name').value='';
+  refreshAll();toast(`${name} is now protected!`,'s');
+}
+
+function removeSite(id){
+  sites=sites.filter(s=>s.id!=id);save();refreshAll();toast('Site removed.','i');
+}
+
+function toggleProtection(id){
+  const s=sites.find(x=>x.id==id);if(!s)return;
+  s.protected=!s.protected;save();
+  refreshAll();
+  toast(s.protected?'Protection enabled!':'Protection disabled. ⚠️',s.protected?'s':'e');
+}
+
+function refreshAll(){
+  renderSiteList();renderOverviewSites();renderDDoSPanel();renderAttackLog();
+  updateMetrics();updateBadges();
+}
+
+function updateMetrics(){
+  const us=getUserSites();
+  document.getElementById('ov-sites').textContent=us.length;
+  document.getElementById('ov-sites-d').textContent=us.length?`${us.filter(s=>s.protected).length} protected`:'Add your first site';
+  document.getElementById('ov-attacks').textContent=liveAttacks;
+  document.getElementById('ov-bw').textContent=totalBW.toFixed(1)+' Gbps';
+  document.getElementById('ipsBlocked').textContent=Math.floor(liveAttacks*12+47);
+  document.getElementById('rulesActive').textContent=us.length*3+12;
+  const tl=liveAttacks>8?'CRITICAL':liveAttacks>3?'HIGH':'MEDIUM';
+  const tlEl=document.getElementById('threatLevel');
+  if(tlEl){tlEl.textContent=tl;tlEl.style.color=liveAttacks>8?'var(--red2)':liveAttacks>3?'var(--orange)':'var(--yellow)';}
+}
+
+function updateBadges(){
+  const us=getUserSites();
+  document.getElementById('siteCountBadge').textContent=us.length;
+  document.getElementById('logBadge').textContent=attackLog.filter(a=>a.owner===currentUser?.name).length;
+}
+
+function renderSiteList(){
+  const el=document.getElementById('siteListEl');
+  const us=getUserSites();
+  if(!us.length){el.innerHTML='<div style="color:var(--text3);font-size:0.82rem;text-align:center;padding:40px 0">No websites added. Click "Add site" to get started.</div>';return;}
+  el.innerHTML=us.map(s=>`
+  <div class="site-row">
+    <div class="site-favicon">🌐</div>
+    <div class="site-info"><div class="site-name">${s.name}</div><div class="site-url">${s.url}</div></div>
+    <span class="badge ${s.status==='online'?'bg':'br'}">${s.status.toUpperCase()}</span>
+    <span class="badge ${s.protected?'bg':'by'}">${s.protected?'🛡 Protected':'⚠ Unprotected'}</span>
+    <div class="site-actions">
+      <button class="btn btn-ghost btn-sm" onclick="pingCheck(${s.id})">Check</button>
+      <button class="btn btn-ghost btn-sm" style="color:var(--red2)" onclick="removeSite(${s.id})">Remove</button>
+    </div>
+  </div>`).join('');
+}
+
+function renderOverviewSites(){
+  const el=document.getElementById('ov-site-list');
+  const us=getUserSites().slice(0,4);
+  if(!us.length){el.innerHTML='<div style="color:var(--text3);font-size:0.82rem;text-align:center;padding:20px 0">No sites added — go to "My Sites" to add your first website</div>';return;}
+  el.innerHTML=us.map(s=>`<div style="display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)"><span style="font-size:1rem">🌐</span><div style="flex:1"><div style="font-size:0.85rem;font-weight:600;color:#fff">${s.name}</div><div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text2)">${s.url}</div></div><span class="badge ${s.status==='online'?'bg':'br'}">${s.status.toUpperCase()}</span><span class="badge ${s.protected?'bg':'by'}">${s.protected?'🛡 Protected':'Unprotected'}</span></div>`).join('');
+}
+
+function renderDDoSPanel(){
+  const el=document.getElementById('ddos-site-list');
+  const us=getUserSites();
+  if(!us.length){el.innerHTML='<div style="color:var(--text3);font-size:0.82rem">Add a website in "My Sites" to manage DDoS protection per site.</div>';return;}
+  el.innerHTML=us.map(s=>`
+  <div style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:14px;margin-bottom:10px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div><div style="font-weight:700;font-size:0.9rem;color:#fff">${s.name}</div><div style="font-family:var(--font-mono);font-size:0.7rem;color:var(--text2)">${s.url}</div></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <span class="badge ${s.status==='online'?'bg':'br'}">${s.status.toUpperCase()}</span>
+        <span class="badge bb">${s.level}</span>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px;background:${s.protected?'rgba(34,211,94,0.04)':'rgba(245,197,24,0.04)'};border:1px solid ${s.protected?'rgba(34,211,94,0.15)':'rgba(245,197,24,0.15)'};border-radius:6px">
+      <div class="toggle ${s.protected?'on':''}" onclick="toggleProtection(${s.id})"><div class="toggle-thumb"></div></div>
+      <div><div style="font-size:0.85rem;font-weight:600;color:#fff">DDoS Protection</div><div style="font-size:0.72rem;color:var(--text2)">${s.protected?'Shield active — all attack vectors blocked':'Click to enable protection'}</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px">
+      <div style="background:var(--card);border-radius:6px;padding:10px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--text3);margin-bottom:4px">ATTACKS BLOCKED</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:var(--red2)">${s.attacks}</div></div>
+      <div style="background:var(--card);border-radius:6px;padding:10px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--text3);margin-bottom:4px">UPTIME</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:#4ade80">99.9%</div></div>
+      <div style="background:var(--card);border-radius:6px;padding:10px;text-align:center"><div style="font-family:var(--font-mono);font-size:0.62rem;color:var(--text3);margin-bottom:4px">LEVEL</div><div style="font-family:var(--font-display);font-weight:800;font-size:1.1rem;color:#60a5fa">${s.level.toUpperCase()}</div></div>
+    </div>
+  </div>`).join('');
+}
+
+function renderAttackLog(){
+  const el=document.getElementById('attackLogBody');
+  const em=document.getElementById('emptyLog');
+  const myAttacks=attackLog.filter(a=>a.owner===currentUser?.name||currentUser?.role==='admin');
+  if(!myAttacks.length){if(em)em.style.display='block';el.innerHTML='';return;}
+  if(em)em.style.display='none';
+  el.innerHTML=myAttacks.slice(0,25).map(a=>`<tr><td style="font-family:var(--font-mono);color:var(--text2);font-size:0.72rem">${a.time}</td><td style="color:#fff;font-weight:600">${a.site}</td><td><span class="badge br">${a.type}</span></td><td style="color:var(--orange);font-weight:600">${a.vol}</td><td style="font-family:var(--font-mono);color:var(--text2);font-size:0.72rem">${a.src}</td><td><span class="badge bg">✓ Blocked</span></td></tr>`).join('');
+}
+
+// ─────────────── PING CHECK ───────────────
+function pingCheck(id){
+  const s=sites.find(x=>x.id==id);
+  if(!s)return;
+  toast(`Checking ${s.name}...`,'i');
+  setTimeout(()=>toast(`✅ ${s.name} is ONLINE — 34ms response`,'s'),1400);
+}
+
+// ─────────────── CHECK WEBSITE ───────────────
+function checkWebsite(){
+  const url=document.getElementById('check-input').value.trim();
+  if(!url){toast('Enter a URL to check.','e');return;}
+  const el=document.getElementById('check-result');
+  el.classList.remove('show');
+  toast('Scanning…','i');
+  setTimeout(()=>{
+    const isProtected=getUserSites().some(s=>s.url===url||url.includes(new URL(s.url.startsWith('http')?s.url:'https://'+s.url).hostname.replace('www.','')));
+    const online=Math.random()>.08;
+    const ping=Math.floor(12+Math.random()*80);
+    const status=online?200:503;
+    document.getElementById('check-status-icon').textContent=online?'✅':'❌';
+    document.getElementById('check-status-text').textContent=online?'Website is online and responding':'Website is offline or unreachable';
+    document.getElementById('check-url-text').textContent=url;
+    document.getElementById('check-badge-wrap').innerHTML=`<span class="badge ${online?'bg':'br'}">${online?'ONLINE':'OFFLINE'}</span>`;
+    document.getElementById('cr-ping').textContent=online?ping+'ms':'—';
+    document.getElementById('cr-ping').style.color=ping<50?'#4ade80':ping<150?'var(--yellow)':'var(--red2)';
+    document.getElementById('cr-status').textContent=status;
+    document.getElementById('cr-status').style.color=status===200?'#4ade80':'var(--red2)';
+    document.getElementById('cr-shield').textContent=isProtected?'Active':'Not found';
+    document.getElementById('cr-shield').style.color=isProtected?'#4ade80':'var(--text3)';
+    document.getElementById('cr-detail').innerHTML=`
+      <strong>Scan summary</strong> — performed at ${new Date().toLocaleTimeString()}<br/>
+      Status: ${online?'✅ Online':'❌ Offline'} | Response time: ${online?ping+'ms':'N/A'} | HTTP status: ${status}<br/>
+      DDoS protection: ${isProtected?'<span style="color:#4ade80">✅ This site is covered under DiabloShield DDoS mitigation</span>':'<span style="color:var(--text2)">⚠ No DiabloShield protection detected — add it in My Sites</span>'}
+    `;
+    el.classList.add('show');
+  },1600);
+}
+
+function renderMySitesCheck(){
+  const el=document.getElementById('my-sites-check');
+  const us=getUserSites();
+  if(!us.length){el.innerHTML='<div style="color:var(--text3);font-size:0.82rem">Add websites in "My Sites" to see their live status here.</div>';return;}
+  el.innerHTML=us.map(s=>`<div class="site-row"><div class="site-favicon">🌐</div><div class="site-info"><div class="site-name">${s.name}</div><div class="site-url">${s.url}</div></div><span class="badge ${s.status==='online'?'bg':'br'}">${s.status.toUpperCase()}</span><span class="badge ${s.protected?'bg':'by'}">${s.protected?'🛡 Protected':'Unprotected'}</span><span class="badge bb">99.9% uptime</span><button class="btn btn-ghost btn-sm" onclick="pingCheck(${s.id})">Ping</button></div>`).join('');
+}
+
+// ─────────────── TRAFFIC CHART ───────────────
+function renderTrafficChart(){
+  const el=document.getElementById('trafficChart');
+  if(!el)return;
+  const vals=[8,22,14,55,32,78,41,63,19,38,82,29,51,71,18,42,60,85,38,21,67,44,72,29];
+  el.innerHTML=vals.map(v=>`<div style="flex:1;border-radius:2px 2px 0 0;background:${v>55?'linear-gradient(to top,rgba(229,72,77,0.8),rgba(229,72,77,0.3))':'linear-gradient(to top,rgba(34,211,94,0.7),rgba(34,211,94,0.25))'};height:${v}%;transition:height .5s"></div>`).join('');
+}
+
+// ─────────────── ATTACK SOURCES ───────────────
+function renderAttackSources(){
+  const el=document.getElementById('attackSources');
+  if(!el)return;
+  const data=[{f:'🇨🇳',n:'China',p:33},{f:'🇷🇺',n:'Russia',p:21},{f:'🇺🇸',n:'USA',p:14},{f:'🇧🇷',n:'Brazil',p:12},{f:'🇩🇪',n:'Germany',p:9}];
+  el.innerHTML=data.map(d=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><span>${d.f}</span><div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:3px"><span style="color:var(--text2)">${d.n}</span><span style="color:var(--red2);font-weight:700;font-family:var(--font-mono)">${d.p}%</span></div><div class="pbar"><div class="pbar-fill pr" style="width:${d.p*2.5}%"></div></div></div></div>`).join('');
+}
+function renderProtocolBreakdown(){
+  const el=document.getElementById('protocolBreakdown');
+  if(!el)return;
+  const data=[{n:'UDP Flood',v:44,c:'var(--red)'},{n:'TCP SYN',v:27,c:'var(--orange)'},{n:'HTTP Flood',v:19,c:'var(--blue)'},{n:'DNS Amp',v:10,c:'var(--purple)'}];
+  el.innerHTML=data.map(d=>`<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px"><div style="width:8px;height:8px;border-radius:50%;background:${d.c};flex-shrink:0"></div><div style="flex:1"><div style="display:flex;justify-content:space-between;font-size:0.72rem;margin-bottom:3px"><span style="color:var(--text2)">${d.n}</span><span style="font-weight:700;color:#fff;font-family:var(--font-mono)">${d.v}%</span></div><div class="pbar"><div class="pbar-fill" style="width:${d.v}%;background:${d.c}"></div></div></div></div>`).join('');
+}
+
+// ─────────────── LIVE STREAM ───────────────
+let streamInt;
+function startLiveStream(){
+  const el=document.getElementById('liveStream');
+  if(!el)return;
+  const types=['BLOCKED','ALLOWED','CHALLENGE','RATE_LIMIT'];
+  const ips=()=>`${rn(200)}.${rn(255)}.${rn(255)}.${rn(255)}`;
+  const paths=['/','login','/api/data','/admin','/wp-login.php','/search'];
+  const colors={BLOCKED:'var(--red2)',ALLOWED:'#4ade80',CHALLENGE:'var(--yellow)',RATE_LIMIT:'var(--orange)'};
+  streamInt=setInterval(()=>{
+    const t=types[Math.floor(Math.random()*types.length)];
+    const line=document.createElement('div');
+    line.style.cssText='padding:2px 0;border-bottom:1px solid rgba(255,255,255,0.03)';
+    line.innerHTML=`<span style="color:var(--text3)">${new Date().toTimeString().slice(0,8)}</span> <span style="color:${colors[t]};font-weight:700">[${t}]</span> <span style="color:#60a5fa">${ips()}</span> <span style="color:var(--text2)">GET ${paths[Math.floor(Math.random()*paths.length)]}</span>`;
+    el.insertBefore(line,el.firstChild);
+    if(el.children.length>35)el.lastChild.remove();
+  },500);
+}
+
+// ─────────────── HEALTH BEAT ───────────────
+let healthInt;
+function startHealthBeat(){
+  renderTrafficChart();
+  healthInt=setInterval(()=>{
+    const cpu=rn(40)+14;const mem=rn(25)+45;const net=rn(45)+25;
+    const setBar=(id,v,vi)=>{const b=document.getElementById(id);const t=document.getElementById(vi);if(b){b.style.width=v+'%';}if(t)t.textContent=v+'%';};
+    setBar('cpu-bar',cpu,'cpu-val');setBar('mem-bar',mem,'mem-val');setBar('net-bar',net,'net-val');
+  },3500);
+}
+
+// ─────────────── ATTACK SIMULATION ───────────────
+let attackInt;
+function startAttackSimulation(){
+  const types=['HTTP Flood','UDP Flood','SYN Flood','DNS Amplification','Slowloris'];
+  attackInt=setInterval(()=>{
+    const us=getUserSites();if(!us.length)return;
+    if(Math.random()>.4)return;
+    const s=us[Math.floor(Math.random()*us.length)];
+    const vol=(Math.random()*45+2).toFixed(1);
+    const type=types[Math.floor(Math.random()*types.length)];
+    liveAttacks++;totalBW+=parseFloat(vol);
+    s.attacks=(s.attacks||0)+1;save();
+    attackLog.unshift({time:new Date().toLocaleTimeString(),site:s.name,owner:s.owner||currentUser?.name||'—',type,vol:vol+' Gbps',src:rn(200)+'.'+rn(255)+'.'+rn(255)+'.'+rn(255)});
+    if(attackLog.length>50)attackLog.pop();save();
+    updateMetrics();updateBadges();
+  },4000);
+}
+
+function rn(n){return Math.floor(Math.random()*n)+1;}
+
+let allInts=[];
+function clearAllIntervals(){clearInterval(streamInt);clearInterval(healthInt);clearInterval(attackInt);}
+
+// ─────────────── SETTINGS ───────────────
+function loadSettingsForm(){
+  if(!currentUser)return;
+  const n=document.getElementById('s-name');const e=document.getElementById('s-email');
+  if(n)n.value=currentUser.name||'';if(e)e.value=currentUser.email||'';
+  const pr=document.getElementById('s-passRow');
+  if(pr)pr.style.display=currentUser.method==='manual'?'flex':'none';
+}
+function saveSettings(){
+  const n=document.getElementById('s-name').value.trim();
+  if(!n){toast('Name cannot be empty.','e');return;}
+  currentUser.name=n;
+  const u=users.find(x=>x.email===currentUser.email);
+  if(u){u.name=n;const np=document.getElementById('s-newpass').value;if(np&&np.length>=8){u.pass=np;}save();}
+  document.getElementById('sidebarName').textContent=n;
+  document.getElementById('sideAvatar').textContent=n.charAt(0).toUpperCase();
+  document.getElementById('chipName').textContent=n.split(' ')[0];
+  document.getElementById('chipInitial').textContent=n.charAt(0).toUpperCase();
+  document.getElementById('greetName').textContent=n.split(' ')[0];
+  toast('Settings saved!','s');
+}
+function flipToggle(id){document.getElementById(id).classList.toggle('on');}
+
+// ─────────────── ADMIN ───────────────
+function refreshAdmin(){
+  const allUsers=[{name:'Diablo',email:ADMIN_EMAIL,role:'admin',method:'manual',joined:'2026-01-01'},...users];
+  document.getElementById('ad-users').textContent=allUsers.length;
+  document.getElementById('ad-sites').textContent=sites.length;
+  document.getElementById('ad-attacks').textContent=attackLog.length;
+  const au=document.getElementById('admin-users');
+  if(au)au.innerHTML=allUsers.map(u=>`<tr><td style="font-weight:600;color:#fff">${u.name}</td><td style="color:var(--text2)">${u.email}</td><td style="color:#60a5fa">${sites.filter(s=>s.userId===u.email).length}</td><td><span class="badge bb">${u.method||'manual'}</span></td><td style="color:var(--text2)">${u.joined||'—'}</td><td><span class="badge ${u.role==='admin'?'br':'bg'}">${u.role||'user'}</span></td></tr>`).join('');
+  const al=document.getElementById('admin-logins');
+  if(al)al.innerHTML=loginLog.slice(0,20).map(l=>`<tr><td style="font-weight:600;color:#fff">${l.name}</td><td style="color:var(--text2)">${l.email}</td><td><span class="badge bb">${l.method}</span></td><td style="font-family:var(--font-mono);color:var(--text2);font-size:0.7rem">${l.time}</td><td><span class="badge ${l.status==='success'?'bg':'br'}">${l.status}</span></td></tr>`).join('');
+  const as=document.getElementById('admin-sites');
+  if(as)as.innerHTML=sites.length?sites.map(s=>`<tr><td style="font-weight:600;color:#fff">${s.name}</td><td style="font-family:var(--font-mono);color:#60a5fa;font-size:0.7rem">${s.url}</td><td style="color:var(--text2)">${s.owner||'—'}</td><td><span class="badge bb">${s.level}</span></td><td><span class="badge ${s.status==='online'?'bg':'br'}">${s.status}</span></td><td style="color:var(--red2);font-weight:600">${s.attacks||0}</td></tr>`).join(''):'<tr><td colspan="6" style="color:var(--text3);text-align:center;padding:16px">No sites registered yet.</td></tr>';
+}
+
+// ─────────────── INIT ───────────────
+renderTrafficChart();
+
+// Seed demo site if first time
+if(!sites.length){
+  sites=[{id:1001,url:'https://mystore.example.com',name:'My Demo Store',level:'standard',userId:'demo@example.com',owner:'Demo User',status:'online',protected:true,attacks:17,added:'6/1/2026'},{id:1002,url:'https://blog.example.com',name:'Tech Blog',level:'advanced',userId:'demo@example.com',owner:'Demo User',status:'online',protected:true,attacks:5,added:'6/10/2026'}];
+  save();
+}
+</script>
+</body>
+</html>
